@@ -2,84 +2,20 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <boost/algorithm/string.hpp>
+#include "document.h"
+#include "common.h"
+#include "csvdb.h"
+#include "db.h"
 
 /*
-*  read a key
-*  write a key value pair
-*  persistent database
-*  multiple databases/documents
+*  multiple databases/documents + map
 *  key auto complition
 *  use Btree to store data in IOUtils and serialize/deserialize it
 *  automatic checkpointing
 *  caching of keys
+*  distributed database
 *  code cleanup
-*/
-
-void printLine(std::string text){
-    std::cout << text << std::endl;
-}
-
-class IOUtils{
-    public:
-        void readKey(std::ifstream& input_stream, std::string key){
-            std::string line;
-            while ( std::getline (input_stream,line) )
-            {
-                std::vector<std::string> result;
-                boost::split(result, line, boost::is_any_of(","));
-                if(result[0]==key){
-                    printLine("Value found: "+ result[1]);
-                    return;
-                }
-            }
-            printLine("Key is not present in the DB");
-        }
-
-        void writeKeyValue(std::ofstream& output_stream, std::string key, std::string value){
-            output_stream<<key+","+value+"\n";
-        }
-};
-
-class Document{
-    public:
-        Document(std::string path, std::string name){
-            path_ = path;
-            name_ = name;
-            output_stream_.open(path_, std::ofstream::app);
-            input_stream_.open(path_);
-        }
-        
-        ~Document(){
-            output_stream_.close();
-            input_stream_.close();
-        }
-
-        void readKey(std::string key){
-            io_utils_->readKey(input_stream_, key);
-        }
-
-        void writeKeyValue(std::string key, std::string value){
-            io_utils_->writeKeyValue(output_stream_, key, value);
-        }
-
-        std::ofstream& getOutputStream(){
-            return output_stream_;
-        }
-
-        std::ifstream& getInputStream(){
-            return input_stream_;
-        }
-    
-    private:
-        std::string path_;
-        std::string name_;
-        std::ofstream output_stream_;
-        std::ifstream input_stream_;
-        IOUtils *io_utils_;
-
-};
-
+**/
 
 void printMenu(){
     printLine("Select one of the options");
@@ -87,47 +23,58 @@ void printMenu(){
     printLine("2. Read a key-value pair");
 }
 
-void readDatabase(Document& document){
+void readDatabase(CsvDb& db){
     std::string key;
     std::cin >> key;
-    document.readKey(key);
+    std::string value = db.read(key);
+	std::cout << value << std::endl;
 }
 
-void writeDatabase(Document& document){
+void writeDatabase(CsvDb& db){
     std::string key,value;
     std::cin >> key >> value;
-    document.writeKeyValue(key, value);
+	db.write(key, value);
 }
 
-void run(){
+CsvDb getDB(Document& document) {
+	CsvDb csv_db;
+	csv_db.populate(document.getInputStream());	
+	return csv_db;
+}
+
+
+void closeDB(CsvDb& db, Document& document) {
+	db.flush_data(document.getOutputStream());
+}
+
+void run(CsvDb& db, Document& document){
     printMenu();
     
-    auto readInput = [](){
-        int input;
-        std::cin >> input;
-        return input;
-    };
-    
-    int input = readInput();
-    Document document("/home/sushant/Desktop/projects/mini-project/hello.txt","hello");
-    
+ 	int input;
+	std::cin >> input;
+
     switch(input){
         case 1: 
-            writeDatabase(document);
+			writeDatabase(db);
             break;
         case 2:
-            readDatabase(document); 
+			readDatabase(db);
             break;
-        default:
+        case 3:
+			closeDB(db, document);
+			exit(0);
+		default:
             printLine("Wrong input.");
     }
 }
 
 int main(){
     
+    Document document("hello.txt", "hello");
+	CsvDb db = getDB(document);
     do{
-        run();
+        run(db, document);
     }while (true);
-
+	
     return 0;
 }
