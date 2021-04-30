@@ -2,7 +2,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <boost/algorithm/string.hpp>
 
 /*
 *  read a key
@@ -14,10 +13,15 @@
 *  automatic checkpointing
 *  caching of keys
 *  code cleanup
-*/
+**/
 
 void printLine(std::string text){
     std::cout << text << std::endl;
+}
+
+void parseLine(const std::string& line, std::string& key, std::string& value) {
+	key = line.substr(0, line.find(','));
+	value = line.substr(line.find(','), line.size() - line.find(','));
 }
 
 class IOUtils{
@@ -26,10 +30,10 @@ class IOUtils{
             std::string line;
             while ( std::getline (input_stream,line) )
             {
-                std::vector<std::string> result;
-                boost::split(result, line, boost::is_any_of(","));
-                if(result[0]==key){
-                    printLine("Value found: "+ result[1]);
+				std::string cur_key, cur_value;
+				parseLine(line, cur_key, cur_value);
+                if(cur_key == key) {
+                    printLine("Value found: "+ cur_value);
                     return;
                 }
             }
@@ -109,7 +113,7 @@ void run(){
     };
     
     int input = readInput();
-    Document document("/home/sushant/Desktop/projects/mini-project/hello.txt","hello");
+    Document document("hello.txt","hello");
     
     switch(input){
         case 1: 
